@@ -26,6 +26,21 @@ from typing_extensions import Annotated, Doc
 
 from ._compat import PYDANTIC_V2, UndefinedType, Url, _model_dump
 
+from bson import ObjectId
+
+# Define the correct_return function
+def correct_return(document):
+    """
+    Recursively convert ObjectId instances to strings in a document.
+    """
+    if isinstance(document, dict):
+        return {k: correct_return(v) for k, v in document.items()}
+    elif isinstance(document, list):
+        return [correct_return(item) for item in document]
+    elif isinstance(document, ObjectId):
+        return str(document)
+    else:
+        return document
 
 # Taken from Pydantic v1 as is
 def isoformat(o: Union[datetime.date, datetime.time]) -> str:
@@ -257,6 +272,8 @@ def jsonable_encoder(
         return obj.value
     if isinstance(obj, PurePath):
         return str(obj)
+    if isinstance(obj, ObjectId):
+        return str(obj)
     if isinstance(obj, (str, int, float, type(None))):
         return obj
     if isinstance(obj, UndefinedType):
@@ -321,7 +338,7 @@ def jsonable_encoder(
             return encoder(obj)
 
     try:
-        data = dict(obj)
+        data = dict(correct_return(obj))
     except Exception as e:
         errors: List[Exception] = []
         errors.append(e)
